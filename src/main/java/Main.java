@@ -3,13 +3,14 @@ import java.util.Iterator;
 public class Main {
     public static void main(String[] args){
         ConcurrentMemoryStoreImpl concurrentMemoryStore = new ConcurrentMemoryStoreImpl();
-
+        ThreadLocal<Item> itemLocal = new ThreadLocal<>();
         Item item1 = new Item();
-        item1.setValue1(2);
-        item1.setValue2(4);
+        item1.setValue1(2000);
+        item1.setValue2(4000);
+        itemLocal.set(item1);
         Item item2 = new Item();
-        item2.setValue1(4);
-        item2.setValue2(8);
+        item2.setValue1(100000);
+        item2.setValue2(200000);
         Item item3 = new Item();
         item3.setValue1(8);
         item3.setValue2(16);
@@ -20,12 +21,17 @@ public class Main {
         item5.setValue1(32);
         item5.setValue2(64);
 
+        Item theItem = itemLocal.get();
+        concurrentMemoryStore.store("item1",theItem);
+
         System.out.println(Thread.currentThread().getName());
         new Thread("creador"){
                 public void run(){
                     System.out.println("Thread: " + getName() + " running");
-                    concurrentMemoryStore.store("item1",item1);
-                    concurrentMemoryStore.store("item2",item2);
+                    itemLocal.set(item2);
+                    Item theItem = itemLocal.get();
+                    concurrentMemoryStore.store("item1",theItem);
+                    //concurrentMemoryStore.store("item2",item2);
                     concurrentMemoryStore.store("item3",item3);
                 }
             }.start();
@@ -69,6 +75,33 @@ public class Main {
 
                 }
                 concurrentMemoryStore.store("item5",item5);
+            }
+        }.start();
+        ThreadLocal<NonConcurrentMemoryStoreImpl> localMemoryStore = new ThreadLocal<>();
+        new Thread("using not thread-safe store class "){
+            public void run(){
+                System.out.println("Thread: " + getName() + " running");
+                localMemoryStore.set(new NonConcurrentMemoryStoreImpl());
+                localMemoryStore.get().store("key",new Item());
+                for (Iterator<Item> it = localMemoryStore.get().valueIterator(); it.hasNext(); ) {
+                    Item item = it.next();
+                    System.out.println(item);
+
+                }
+                localMemoryStore.get().remove("key");
+            }
+        }.start();
+        new Thread(" 2 using not thread-safe store class "){
+            public void run(){
+                System.out.println("Thread: " + getName() + " running");
+                localMemoryStore.set(new NonConcurrentMemoryStoreImpl());
+                localMemoryStore.get().store("key",new Item());
+                for (Iterator<Item> it = localMemoryStore.get().valueIterator(); it.hasNext(); ) {
+                    Item item = it.next();
+                    System.out.println(item);
+
+                }
+                localMemoryStore.get().remove("key");
             }
         }.start();
     }
